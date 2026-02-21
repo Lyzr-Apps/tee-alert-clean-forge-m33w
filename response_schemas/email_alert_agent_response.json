@@ -1,0 +1,32 @@
+{
+  "agent_name": "Email Alert Agent",
+  "agent_id": "699924a15d02b31774efd839",
+  "description": "Composes and sends a well-formatted email notification with tee time details (course name, date, time, available spots, booking link) when the Checker Agent finds a match.",
+  "agent_type": "json",
+  "accessor": "result",
+  "auto_generated": true,
+  "response_schema": {
+    "email_sent": "boolean",
+    "recipient_email": "string",
+    "email_subject": "string",
+    "course_name": "string",
+    "tee_time_date": "string",
+    "tee_time_slot": "string",
+    "available_spots": "number",
+    "booking_link": "string",
+    "sent_timestamp": "string",
+    "status_message": "string"
+  },
+  "example_response": {
+    "email_sent": false,
+    "recipient_email": "sample string",
+    "email_subject": "sample string",
+    "course_name": "sample string",
+    "tee_time_date": "sample string",
+    "tee_time_slot": "sample string",
+    "available_spots": 0,
+    "booking_link": "sample string",
+    "sent_timestamp": "sample string",
+    "status_message": "sample string"
+  }
+}

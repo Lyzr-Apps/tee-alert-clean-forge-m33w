@@ -1,0 +1,30 @@
+{
+  "agents": {
+    "tee_time_checker": {
+      "agent_id": "6999248b317f68b98913d7dc",
+      "name": "Tee Time Checker Agent",
+      "has_schedule": true,
+      "schedule_id": "699924a0399dfadeac37dd32",
+      "schedule_cron": "*/15 * * * *",
+      "schedule_timezone": "America/New_York"
+    },
+    "email_alert": {
+      "agent_id": "699924a15d02b31774efd839",
+      "name": "Email Alert Agent",
+      "has_tools": true,
+      "tools": ["GMAIL_SEND_EMAIL"]
+    }
+  },
+  "schedules": {
+    "tee_time_check_schedule": {
+      "schedule_id": "699924a0399dfadeac37dd32",
+      "agent_id": "6999248b317f68b98913d7dc",
+      "cron_expression": "*/15 * * * *",
+      "timezone": "America/New_York",
+      "message": "Check all configured golf courses for available tee times matching user preferences. Report any matching availability found.",
+      "is_active": true,
+      "max_retries": 3,
+      "retry_delay": 60
+    }
+  }
+}

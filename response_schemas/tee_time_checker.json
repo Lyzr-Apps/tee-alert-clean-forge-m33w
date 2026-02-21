@@ -1,0 +1,28 @@
+{
+  "agent_name": "Tee Time Checker Agent",
+  "agent_id": "6999248b317f68b98913d7dc",
+  "agent_type": "json",
+  "accessor": "json",
+  "has_module_outputs": false,
+  "response_schema": {
+    "course_name": "string",
+    "check_timestamp": "string",
+    "matches_found": "boolean",
+    "matching_tee_times": [
+      {
+        "date": "string",
+        "time": "string",
+        "available_spots": "number",
+        "price": "string",
+        "booking_link": "string"
+      }
+    ],
+    "total_matches": "number",
+    "preferences_checked": {
+      "time_window_start": "string",
+      "time_window_end": "string",
+      "players_requested": "number",
+      "dates_checked": ["string"]
+    }
+  }
+}

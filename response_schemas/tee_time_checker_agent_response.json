@@ -1,0 +1,54 @@
+{
+  "agent_name": "Tee Time Checker Agent",
+  "agent_id": "6999248b317f68b98913d7dc",
+  "description": "Checks golf course booking platforms for available tee times matching user-defined preferences (course, time window, player count). Parses availability data and identifies matching slots.",
+  "agent_type": "json",
+  "accessor": "result",
+  "auto_generated": true,
+  "response_schema": {
+    "course_name": "string",
+    "check_timestamp": "string",
+    "matches_found": "boolean",
+    "matching_tee_times": [
+      {
+        "date": "string",
+        "time": "string",
+        "available_spots": "number",
+        "price": "string",
+        "booking_link": "string"
+      }
+    ],
+    "total_matches": "number",
+    "preferences_checked": {
+      "time_window_start": "string",
+      "time_window_end": "string",
+      "players_requested": "number",
+      "dates_checked": [
+        "string"
+      ]
+    }
+  },
+  "example_response": {
+    "course_name": "sample string",
+    "check_timestamp": "sample string",
+    "matches_found": false,
+    "matching_tee_times": [
+      {
+        "date": "sample string",
+        "time": "sample string",
+        "available_spots": 0,
+        "price": "sample string",
+        "booking_link": "sample string"
+      }
+    ],
+    "total_matches": 0,
+    "preferences_checked": {
+      "time_window_start": "sample string",
+      "time_window_end": "sample string",
+      "players_requested": 0,
+      "dates_checked": [
+        "sample string"
+      ]
+    }
+  }
+}

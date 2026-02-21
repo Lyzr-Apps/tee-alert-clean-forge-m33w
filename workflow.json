@@ -1,0 +1,44 @@
+{
+  "nodes": [
+    {
+      "id": "input_node",
+      "type": "Input",
+      "label": "Alert Preferences",
+      "nodeCategory": "input"
+    },
+    {
+      "id": "checker_agent",
+      "type": "Agent",
+      "label": "Tee Time Checker Agent",
+      "nodeCategory": "agent",
+      "agent_id": "6999248b317f68b98913d7dc"
+    },
+    {
+      "id": "email_agent",
+      "type": "Agent",
+      "label": "Email Alert Agent",
+      "nodeCategory": "agent",
+      "agent_id": "699924a15d02b31774efd839"
+    },
+    {
+      "id": "output_node",
+      "type": "Output",
+      "label": "Email Notification",
+      "nodeCategory": "end"
+    }
+  ],
+  "edges": [
+    {
+      "source": "input_node",
+      "target": "checker_agent"
+    },
+    {
+      "source": "checker_agent",
+      "target": "email_agent"
+    },
+    {
+      "source": "email_agent",
+      "target": "output_node"
+    }
+  ]
+}
