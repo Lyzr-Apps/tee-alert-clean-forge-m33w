@@ -1,0 +1,102 @@
+{
+  "alerts": [
+    {
+      "id": "g8c6nkmenvdxb3i7foc3e",
+      "courseName": "Encino Golf Course",
+      "dates": [
+        "2026-02-21"
+      ],
+      "timeWindowStart": "05:00",
+      "timeWindowEnd": "20:45",
+      "players": 1,
+      "email": "orizmizrahi@gmail.com",
+      "frequency": "15",
+      "status": "active",
+      "createdAt": "2026-02-21T04:00:24.156Z"
+    }
+  ],
+  "notifications": [
+    {
+      "id": "wds34yp1ebozuhojs7avj",
+      "alertId": "g8c6nkmenvdxb3i7foc3e",
+      "courseName": "Encino Golf Course",
+      "teeTimeDate": "2026-02-21",
+      "teeTimeSlot": "6:15 AM",
+      "availableSpots": 4,
+      "bookingLink": "https://www.golfnow.com/tee-times/facility/encino-golf-course/search",
+      "sentAt": "2026-02-21T04:01:01.663Z",
+      "emailSent": true
+    },
+    {
+      "id": "o9d2apdmqob62sloxhxu5",
+      "alertId": "g8c6nkmenvdxb3i7foc3e",
+      "courseName": "Encino Golf Course",
+      "teeTimeDate": "2026-02-21",
+      "teeTimeSlot": "6:50 AM",
+      "availableSpots": 4,
+      "bookingLink": "https://www.golfnow.com/tee-times/facility/encino-golf-course/search",
+      "sentAt": "2026-02-21T04:01:01.663Z",
+      "emailSent": true
+    },
+    {
+      "id": "y9psf5lwi9i8zudihslo",
+      "alertId": "g8c6nkmenvdxb3i7foc3e",
+      "courseName": "Encino Golf Course",
+      "teeTimeDate": "2026-02-21",
+      "teeTimeSlot": "7:30 AM",
+      "availableSpots": 4,
+      "bookingLink": "https://www.golfnow.com/tee-times/facility/encino-golf-course/search",
+      "sentAt": "2026-02-21T04:01:01.663Z",
+      "emailSent": true
+    },
+    {
+      "id": "uwdjc8dkbsf7a9kl262i6x",
+      "alertId": "g8c6nkmenvdxb3i7foc3e",
+      "courseName": "Encino Golf Course",
+      "teeTimeDate": "2026-02-21",
+      "teeTimeSlot": "8:10 AM",
+      "availableSpots": 4,
+      "bookingLink": "https://www.golfnow.com/tee-times/facility/encino-golf-course/search",
+      "sentAt": "2026-02-21T04:01:01.663Z",
+      "emailSent": true
+    },
+    {
+      "id": "2fc3ljpzo8s7d1ckilst1",
+      "alertId": "g8c6nkmenvdxb3i7foc3e",
+      "courseName": "Encino Golf Course",
+      "teeTimeDate": "2026-02-21",
+      "teeTimeSlot": "8:50 AM",
+      "availableSpots": 4,
+      "bookingLink": "https://www.golfnow.com/tee-times/facility/encino-golf-course/search",
+      "sentAt": "2026-02-21T04:01:01.663Z",
+      "emailSent": true
+    },
+    {
+      "id": "di78fo0fzklqvui0itdws9",
+      "alertId": "g8c6nkmenvdxb3i7foc3e",
+      "courseName": "Encino Golf Course",
+      "teeTimeDate": "2026-02-21",
+      "teeTimeSlot": "9:30 AM",
+      "availableSpots": 4,
+      "bookingLink": "https://www.golfnow.com/tee-times/facility/encino-golf-course/search",
+      "sentAt": "2026-02-21T04:01:01.663Z",
+      "emailSent": true
+    },
+    {
+      "id": "zgmwkg1rfl8fdaxxxott16",
+      "alertId": "g8c6nkmenvdxb3i7foc3e",
+      "courseName": "Encino Golf Course",
+      "teeTimeDate": "2026-02-21",
+      "teeTimeSlot": "10:10 AM",
+      "availableSpots": 4,
+      "bookingLink": "https://www.golfnow.com/tee-times/facility/encino-golf-course/search",
+      "sentAt": "2026-02-21T04:01:01.663Z",
+      "emailSent": true
+    }
+  ],
+  "settings": {
+    "defaultEmail": "",
+    "defaultFrequency": "15",
+    "emailEnabled": true
+  }
+}

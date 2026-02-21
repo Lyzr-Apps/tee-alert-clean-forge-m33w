@@ -1,7 +1,8 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { callAIAgent } from '@/lib/aiAgent'
+import fetchWrapper from '@/lib/fetchWrapper'
 import { listSchedules, getScheduleLogs, pauseSchedule, resumeSchedule, triggerScheduleNow, cronToHuman } from '@/lib/scheduler'
 import type { Schedule, ExecutionLog } from '@/lib/scheduler'
 import { Button } from '@/components/ui/button'
@@ -1191,57 +1192,124 @@ function SettingsScreen({
 // ────────────────────────────────────────────────────────────────────────────
 
 export default function Page() {
-  // ── LocalStorage helpers ──
-  const LS_KEYS = {
-    alerts: 'teetimealerts_alerts',
-    notifications: 'teetimealerts_notifications',
-    defaultEmail: 'teetimealerts_defaultEmail',
-    defaultFrequency: 'teetimealerts_defaultFrequency',
-    emailEnabled: 'teetimealerts_emailEnabled',
-  }
-
-  function loadFromLS<T>(key: string, fallback: T): T {
-    if (typeof window === 'undefined') return fallback
-    try {
-      const stored = localStorage.getItem(key)
-      if (stored === null) return fallback
-      return JSON.parse(stored) as T
-    } catch {
-      return fallback
-    }
-  }
-
-  function saveToLS<T>(key: string, value: T) {
-    if (typeof window === 'undefined') return
-    try {
-      localStorage.setItem(key, JSON.stringify(value))
-    } catch {
-      // localStorage full or unavailable — silently fail
-    }
-  }
-
   // ── Navigation ──
   const [activeScreen, setActiveScreen] = useState<ScreenName>('dashboard')
 
   // ── Sample data toggle ──
   const [sampleMode, setSampleMode] = useState(false)
 
-  // ── Alerts & Notifications (initialized from localStorage) ──
-  const [alerts, setAlerts] = useState<TeeTimeAlert[]>(() => loadFromLS(LS_KEYS.alerts, []))
-  const [notifications, setNotifications] = useState<Notification[]>(() => loadFromLS(LS_KEYS.notifications, []))
+  // ── Alerts & Notifications (loaded from server) ──
+  const [alerts, setAlerts] = useState<TeeTimeAlert[]>([])
+  const [notifications, setNotifications] = useState<Notification[]>([])
   const [editingAlert, setEditingAlert] = useState<TeeTimeAlert | null>(null)
+  const [dataLoaded, setDataLoaded] = useState(false)
 
-  // ── Settings (initialized from localStorage) ──
-  const [defaultEmail, setDefaultEmail] = useState<string>(() => loadFromLS(LS_KEYS.defaultEmail, ''))
-  const [defaultFrequency, setDefaultFrequency] = useState<string>(() => loadFromLS(LS_KEYS.defaultFrequency, '15'))
-  const [emailEnabled, setEmailEnabled] = useState<boolean>(() => loadFromLS(LS_KEYS.emailEnabled, true))
+  // ── Settings (loaded from server) ──
+  const [defaultEmail, setDefaultEmail] = useState('')
+  const [defaultFrequency, setDefaultFrequency] = useState('15')
+  const [emailEnabled, setEmailEnabled] = useState(true)
 
-  // ── Persist to localStorage whenever these change ──
-  useEffect(() => { saveToLS(LS_KEYS.alerts, alerts) }, [alerts])
-  useEffect(() => { saveToLS(LS_KEYS.notifications, notifications) }, [notifications])
-  useEffect(() => { saveToLS(LS_KEYS.defaultEmail, defaultEmail) }, [defaultEmail])
-  useEffect(() => { saveToLS(LS_KEYS.defaultFrequency, defaultFrequency) }, [defaultFrequency])
-  useEffect(() => { saveToLS(LS_KEYS.emailEnabled, emailEnabled) }, [emailEnabled])
+  // ── Server-side persistence helpers ──
+  const settingsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const loadAllData = useCallback(async () => {
+    try {
+      const res = await fetchWrapper('/api/alerts?action=all')
+      if (res) {
+        const data = await res.json()
+        if (data.success) {
+          setAlerts(Array.isArray(data.alerts) ? data.alerts : [])
+          setNotifications(Array.isArray(data.notifications) ? data.notifications : [])
+          if (data.settings) {
+            setDefaultEmail(data.settings.defaultEmail || '')
+            setDefaultFrequency(data.settings.defaultFrequency || '15')
+            setEmailEnabled(data.settings.emailEnabled !== false)
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[loadAllData] Failed:', err)
+    } finally {
+      setDataLoaded(true)
+    }
+  }, [])
+
+  // Load data from server on mount
+  useEffect(() => {
+    loadAllData()
+  }, [loadAllData])
+
+  const saveAlertToServer = useCallback(async (alert: TeeTimeAlert) => {
+    try {
+      await fetchWrapper('/api/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save-alert', alert }),
+      })
+    } catch (err) {
+      console.error('[saveAlertToServer] Failed:', err)
+    }
+  }, [])
+
+  const deleteAlertFromServer = useCallback(async (alertId: string) => {
+    try {
+      await fetchWrapper('/api/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete-alert', alertId }),
+      })
+    } catch (err) {
+      console.error('[deleteAlertFromServer] Failed:', err)
+    }
+  }, [])
+
+  const toggleAlertOnServer = useCallback(async (alertId: string) => {
+    try {
+      await fetchWrapper('/api/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'toggle-alert', alertId }),
+      })
+    } catch (err) {
+      console.error('[toggleAlertOnServer] Failed:', err)
+    }
+  }, [])
+
+  const saveNotificationsToServer = useCallback(async (newNotifs: Notification[]) => {
+    try {
+      await fetchWrapper('/api/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add-notifications', notifications: newNotifs }),
+      })
+    } catch (err) {
+      console.error('[saveNotificationsToServer] Failed:', err)
+    }
+  }, [])
+
+  const saveSettingsToServer = useCallback(async (settings: { defaultEmail: string; defaultFrequency: string; emailEnabled: boolean }) => {
+    try {
+      await fetchWrapper('/api/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update-settings', settings }),
+      })
+    } catch (err) {
+      console.error('[saveSettingsToServer] Failed:', err)
+    }
+  }, [])
+
+  // Debounced settings sync — save after 800ms of no changes
+  useEffect(() => {
+    if (!dataLoaded) return
+    if (settingsDebounceRef.current) clearTimeout(settingsDebounceRef.current)
+    settingsDebounceRef.current = setTimeout(() => {
+      saveSettingsToServer({ defaultEmail, defaultFrequency, emailEnabled })
+    }, 800)
+    return () => {
+      if (settingsDebounceRef.current) clearTimeout(settingsDebounceRef.current)
+    }
+  }, [defaultEmail, defaultFrequency, emailEnabled, dataLoaded, saveSettingsToServer])
 
   // ── Agent states ──
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null)
@@ -1415,6 +1483,7 @@ Please compose a professional email with all these details and a prominent booki
             }))
 
             setNotifications(prev => [...newNotifications, ...prev])
+            saveNotificationsToServer(newNotifications)
 
             setStatusMessages(prev => ({
               ...prev,
@@ -1439,6 +1508,7 @@ Please compose a professional email with all these details and a prominent booki
               emailSent: false,
             }))
             setNotifications(prev => [...newNotifications, ...prev])
+            saveNotificationsToServer(newNotifications)
 
             setStatusMessages(prev => ({
               ...prev,
@@ -1508,7 +1578,7 @@ Return the results as JSON with the matching_tee_times array populated.`
 
       const result = await callAIAgent(checkMessage, TEE_TIME_CHECKER_ID)
 
-      // Save alert to state regardless of check result
+      // Save alert to state AND server regardless of check result
       setAlerts(prev => {
         const existing = prev.findIndex(a => a.id === alert.id)
         if (existing !== -1) {
@@ -1518,6 +1588,7 @@ Return the results as JSON with the matching_tee_times array populated.`
         }
         return [...prev, alert]
       })
+      await saveAlertToServer(alert)
 
       if (result.success) {
         const { teeTimes, found } = extractTeeTimeData(result)
@@ -1547,6 +1618,7 @@ Return the results as JSON with the matching_tee_times array populated.`
         }
         return [...prev, alert]
       })
+      await saveAlertToServer(alert)
       setCreateStatusMessage({ type: 'info', text: 'Alert saved! Initial check encountered an issue, but we will keep monitoring.' })
       setTimeout(() => {
         setActiveScreen('dashboard')
@@ -1557,7 +1629,7 @@ Return the results as JSON with the matching_tee_times array populated.`
       setIsSaving(false)
       setActiveAgentId(null)
     }
-  }, [])
+  }, [saveAlertToServer, extractTeeTimeData, formatDateForSearch])
 
   const handleToggleAlert = useCallback((id: string) => {
     setAlerts(prev =>
@@ -1565,7 +1637,8 @@ Return the results as JSON with the matching_tee_times array populated.`
         a.id === id ? { ...a, status: a.status === 'active' ? 'paused' as const : 'active' as const } : a
       )
     )
-  }, [])
+    toggleAlertOnServer(id)
+  }, [toggleAlertOnServer])
 
   const handleDeleteAlert = useCallback((id: string) => {
     setAlerts(prev => prev.filter(a => a.id !== id))
@@ -1574,7 +1647,8 @@ Return the results as JSON with the matching_tee_times array populated.`
       delete next[id]
       return next
     })
-  }, [])
+    deleteAlertFromServer(id)
+  }, [deleteAlertFromServer])
 
   const handleEditAlert = useCallback((alert: TeeTimeAlert) => {
     setEditingAlert(alert)
