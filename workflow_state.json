@@ -3,6 +3,8 @@
     "tee_time_checker": {
       "agent_id": "6999248b317f68b98913d7dc",
       "name": "Tee Time Checker Agent",
+      "provider": "perplexity",
+      "model": "sonar-pro",
       "has_schedule": true,
       "schedule_id": "699924a0399dfadeac37dd32",
       "schedule_cron": "*/15 * * * *",
