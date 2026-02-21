@@ -1191,21 +1191,57 @@ function SettingsScreen({
 // ────────────────────────────────────────────────────────────────────────────
 
 export default function Page() {
+  // ── LocalStorage helpers ──
+  const LS_KEYS = {
+    alerts: 'teetimealerts_alerts',
+    notifications: 'teetimealerts_notifications',
+    defaultEmail: 'teetimealerts_defaultEmail',
+    defaultFrequency: 'teetimealerts_defaultFrequency',
+    emailEnabled: 'teetimealerts_emailEnabled',
+  }
+
+  function loadFromLS<T>(key: string, fallback: T): T {
+    if (typeof window === 'undefined') return fallback
+    try {
+      const stored = localStorage.getItem(key)
+      if (stored === null) return fallback
+      return JSON.parse(stored) as T
+    } catch {
+      return fallback
+    }
+  }
+
+  function saveToLS<T>(key: string, value: T) {
+    if (typeof window === 'undefined') return
+    try {
+      localStorage.setItem(key, JSON.stringify(value))
+    } catch {
+      // localStorage full or unavailable — silently fail
+    }
+  }
+
   // ── Navigation ──
   const [activeScreen, setActiveScreen] = useState<ScreenName>('dashboard')
 
   // ── Sample data toggle ──
   const [sampleMode, setSampleMode] = useState(false)
 
-  // ── Alerts & Notifications ──
-  const [alerts, setAlerts] = useState<TeeTimeAlert[]>([])
-  const [notifications, setNotifications] = useState<Notification[]>([])
+  // ── Alerts & Notifications (initialized from localStorage) ──
+  const [alerts, setAlerts] = useState<TeeTimeAlert[]>(() => loadFromLS(LS_KEYS.alerts, []))
+  const [notifications, setNotifications] = useState<Notification[]>(() => loadFromLS(LS_KEYS.notifications, []))
   const [editingAlert, setEditingAlert] = useState<TeeTimeAlert | null>(null)
 
-  // ── Settings ──
-  const [defaultEmail, setDefaultEmail] = useState('')
-  const [defaultFrequency, setDefaultFrequency] = useState('15')
-  const [emailEnabled, setEmailEnabled] = useState(true)
+  // ── Settings (initialized from localStorage) ──
+  const [defaultEmail, setDefaultEmail] = useState<string>(() => loadFromLS(LS_KEYS.defaultEmail, ''))
+  const [defaultFrequency, setDefaultFrequency] = useState<string>(() => loadFromLS(LS_KEYS.defaultFrequency, '15'))
+  const [emailEnabled, setEmailEnabled] = useState<boolean>(() => loadFromLS(LS_KEYS.emailEnabled, true))
+
+  // ── Persist to localStorage whenever these change ──
+  useEffect(() => { saveToLS(LS_KEYS.alerts, alerts) }, [alerts])
+  useEffect(() => { saveToLS(LS_KEYS.notifications, notifications) }, [notifications])
+  useEffect(() => { saveToLS(LS_KEYS.defaultEmail, defaultEmail) }, [defaultEmail])
+  useEffect(() => { saveToLS(LS_KEYS.defaultFrequency, defaultFrequency) }, [defaultFrequency])
+  useEffect(() => { saveToLS(LS_KEYS.emailEnabled, emailEnabled) }, [emailEnabled])
 
   // ── Agent states ──
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null)
