@@ -1260,57 +1260,113 @@ export default function Page() {
 
   // ── Handlers ──
 
+  // Helper to extract tee time data from various response shapes
+  const extractTeeTimeData = useCallback((result: any) => {
+    // Try multiple paths to find the data
+    const paths = [
+      result?.response?.result,
+      result?.response,
+      result?.result,
+      result,
+    ]
+    for (const data of paths) {
+      if (data && typeof data === 'object') {
+        const teeTimes = Array.isArray(data?.matching_tee_times) ? data.matching_tee_times : []
+        if (teeTimes.length > 0 || data?.matches_found === true || data?.total_matches > 0) {
+          return { data, teeTimes, found: true }
+        }
+        // Also check if matches_found is explicitly false but there are still tee times
+        if (teeTimes.length > 0) {
+          return { data, teeTimes, found: true }
+        }
+      }
+    }
+    // Return the best data object we found even if no matches
+    const bestData = paths.find(d => d && typeof d === 'object' && 'course_name' in d) || paths[0]
+    return { data: bestData, teeTimes: [], found: false }
+  }, [])
+
+  // Format date for better search queries
+  const formatDateForSearch = useCallback((dateStr: string) => {
+    try {
+      const d = new Date(dateStr + 'T00:00:00')
+      return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+    } catch {
+      return dateStr
+    }
+  }, [])
+
   const handleCheckNow = useCallback(async (alert: TeeTimeAlert) => {
     setCheckingAlertId(alert.id)
     setActiveAgentId(TEE_TIME_CHECKER_ID)
-    setStatusMessages(prev => ({ ...prev, [alert.id]: { type: 'info', text: 'Checking for available tee times...' } }))
+    setStatusMessages(prev => ({ ...prev, [alert.id]: { type: 'info', text: 'Searching GolfNow and other platforms for available tee times...' } }))
 
     try {
-      const datesStr = Array.isArray(alert.dates) ? alert.dates.join(', ') : ''
-      const checkMessage = `Check tee time availability for the following preferences:
-Course: ${alert.courseName}
-Dates: ${datesStr}
-Time Window: ${formatTimeDisplay(alert.timeWindowStart)} to ${formatTimeDisplay(alert.timeWindowEnd)}
-Players: ${alert.players}`
+      const datesFormatted = Array.isArray(alert.dates) ? alert.dates.map(d => formatDateForSearch(d)) : []
+      const datesStr = datesFormatted.join(', ')
+      const rawDatesStr = Array.isArray(alert.dates) ? alert.dates.join(', ') : ''
+
+      const checkMessage = `Search the web RIGHT NOW for available tee times. This is a real search request.
+
+SEARCH FOR: "${alert.courseName}" tee times on GolfNow.com
+DATES TO CHECK: ${datesStr} (${rawDatesStr})
+PREFERRED TIME WINDOW: ${formatTimeDisplay(alert.timeWindowStart)} to ${formatTimeDisplay(alert.timeWindowEnd)}
+NUMBER OF PLAYERS: ${alert.players}
+
+INSTRUCTIONS:
+1. Search GolfNow.com for "${alert.courseName}" tee times on ${datesStr}
+2. Also search for "${alert.courseName} tee times ${rawDatesStr}"
+3. List EVERY available tee time you find with the exact time, price, and booking URL
+4. Set matches_found to true if you find ANY tee times at all
+5. Include ALL tee times, not just those in the preferred window
+6. Use real GolfNow booking URLs
+7. If price is visible, include it. Otherwise use "See GolfNow"
+
+Return the results as JSON with the matching_tee_times array populated.`
 
       const result = await callAIAgent(checkMessage, TEE_TIME_CHECKER_ID)
 
-      if (result.success) {
-        const data = result?.response?.result
+      // Debug: log raw response
+      console.log('[TeeTimeChecker] Raw result:', JSON.stringify(result, null, 2))
 
-        if (data?.matches_found) {
-          const teeTimes: TeeTimeMatch[] = Array.isArray(data?.matching_tee_times) ? data.matching_tee_times : []
-          const totalMatches = data?.total_matches ?? teeTimes.length
+      if (result.success) {
+        const { data, teeTimes, found } = extractTeeTimeData(result)
+        console.log('[TeeTimeChecker] Extracted:', { found, teeTimesCount: teeTimes.length, data })
+
+        if (found && teeTimes.length > 0) {
+          const totalMatches = teeTimes.length
 
           setStatusMessages(prev => ({
             ...prev,
             [alert.id]: {
               type: 'success',
-              text: `Found ${totalMatches} matching tee time${totalMatches !== 1 ? 's' : ''}! Sending email alert...`,
+              text: `Found ${totalMatches} available tee time${totalMatches !== 1 ? 's' : ''}! ${emailEnabled ? 'Sending email alert...' : ''}`,
             },
           }))
 
           // Send email for each match if email is enabled
-          if (emailEnabled && teeTimes.length > 0) {
+          if (emailEnabled) {
             setActiveAgentId(EMAIL_ALERT_ID)
             const firstMatch = teeTimes[0]
 
             const emailMessage = `Send a tee time alert email with the following details:
 Recipient Email: ${alert.email}
-Email Subject: Tee Time Available - ${alert.courseName}
+Email Subject: Tee Time Available - ${alert.courseName} on ${firstMatch?.date ?? rawDatesStr}
 Course Name: ${alert.courseName}
-Tee Time Date: ${firstMatch?.date ?? datesStr}
+Tee Time Date: ${firstMatch?.date ?? rawDatesStr}
 Tee Time Slot: ${firstMatch?.time ?? 'Available'}
 Available Spots: ${firstMatch?.available_spots ?? alert.players}
-Booking Link: ${firstMatch?.booking_link ?? 'N/A'}
+Price: ${firstMatch?.price ?? 'See booking site'}
+Booking Link: ${firstMatch?.booking_link ?? 'https://www.golfnow.com'}
+
+Additional tee times found: ${teeTimes.slice(1, 5).map((tt: TeeTimeMatch) => `${tt.time} ($${tt.price})`).join(', ') || 'None'}
 
 Please compose a professional email with all these details and a prominent booking link.`
 
             const emailResult = await callAIAgent(emailMessage, EMAIL_ALERT_ID)
-            const emailData = emailResult?.response?.result
 
             // Add notifications for found tee times
-            const newNotifications: Notification[] = teeTimes.map((tt, idx) => ({
+            const newNotifications: Notification[] = teeTimes.map((tt: TeeTimeMatch) => ({
               id: generateId(),
               alertId: alert.id,
               courseName: data?.course_name ?? alert.courseName,
@@ -1330,12 +1386,12 @@ Please compose a professional email with all these details and a prominent booki
                 type: 'success',
                 text: emailResult?.success
                   ? `${totalMatches} tee time${totalMatches !== 1 ? 's' : ''} found and email alert sent to ${alert.email}!`
-                  : `${totalMatches} tee time${totalMatches !== 1 ? 's' : ''} found but email failed: ${emailData?.status_message ?? 'Unknown error'}`,
+                  : `${totalMatches} tee time${totalMatches !== 1 ? 's' : ''} found. Email delivery: ${emailResult?.error ?? 'check inbox'}`,
               },
             }))
           } else {
             // Add notifications without email
-            const newNotifications: Notification[] = teeTimes.map((tt) => ({
+            const newNotifications: Notification[] = teeTimes.map((tt: TeeTimeMatch) => ({
               id: generateId(),
               alertId: alert.id,
               courseName: data?.course_name ?? alert.courseName,
@@ -1347,21 +1403,33 @@ Please compose a professional email with all these details and a prominent booki
               emailSent: false,
             }))
             setNotifications(prev => [...newNotifications, ...prev])
+
+            setStatusMessages(prev => ({
+              ...prev,
+              [alert.id]: {
+                type: 'success',
+                text: `${totalMatches} tee time${totalMatches !== 1 ? 's' : ''} found! Email notifications are disabled in Settings.`,
+              },
+            }))
           }
         } else {
-          const prefsChecked = data?.preferences_checked
+          // No matches - show debug info about what was returned
+          const responsePreview = data ? JSON.stringify(data).substring(0, 200) : 'No data'
+          const rawMsg = result?.response?.message || result?.raw_response || ''
+          const debugHint = rawMsg ? ` Agent message: ${String(rawMsg).substring(0, 150)}` : ''
+
           setStatusMessages(prev => ({
             ...prev,
             [alert.id]: {
               type: 'info',
-              text: `No matching tee times found for ${data?.course_name ?? alert.courseName}. Checked: ${prefsChecked?.time_window_start ?? alert.timeWindowStart} - ${prefsChecked?.time_window_end ?? alert.timeWindowEnd}, ${prefsChecked?.players_requested ?? alert.players} players. Checked at ${data?.check_timestamp ? formatDateTime(data.check_timestamp) : 'just now'}.`,
+              text: `No tee times found for ${data?.course_name ?? alert.courseName} on ${rawDatesStr}. The agent searched but found no availability. Try a different date or broaden the time window.${debugHint}`,
             },
           }))
         }
       } else {
         setStatusMessages(prev => ({
           ...prev,
-          [alert.id]: { type: 'error', text: result?.error ?? 'Failed to check tee times. Please try again.' },
+          [alert.id]: { type: 'error', text: `Agent error: ${result?.error ?? 'Failed to check tee times. Please try again.'}` },
         }))
       }
     } catch (err) {
@@ -1373,25 +1441,38 @@ Please compose a professional email with all these details and a prominent booki
       setCheckingAlertId(null)
       setActiveAgentId(null)
     }
-  }, [emailEnabled])
+  }, [emailEnabled, extractTeeTimeData, formatDateForSearch])
 
   const handleSaveAlert = useCallback(async (alert: TeeTimeAlert) => {
     setIsSaving(true)
-    setCreateStatusMessage({ type: 'info', text: 'Saving alert and checking availability...' })
+    setCreateStatusMessage({ type: 'info', text: 'Saving alert and searching for available tee times...' })
     setActiveAgentId(TEE_TIME_CHECKER_ID)
 
     try {
-      // Check availability on save
-      const datesStr = Array.isArray(alert.dates) ? alert.dates.join(', ') : ''
-      const checkMessage = `Check tee time availability for the following preferences:
-Course: ${alert.courseName}
-Dates: ${datesStr}
-Time Window: ${formatTimeDisplay(alert.timeWindowStart)} to ${formatTimeDisplay(alert.timeWindowEnd)}
-Players: ${alert.players}`
+      const datesFormatted = Array.isArray(alert.dates) ? alert.dates.map(d => formatDateForSearch(d)) : []
+      const datesStr = datesFormatted.join(', ')
+      const rawDatesStr = Array.isArray(alert.dates) ? alert.dates.join(', ') : ''
+
+      const checkMessage = `Search the web RIGHT NOW for available tee times. This is a real search request.
+
+SEARCH FOR: "${alert.courseName}" tee times on GolfNow.com
+DATES TO CHECK: ${datesStr} (${rawDatesStr})
+PREFERRED TIME WINDOW: ${formatTimeDisplay(alert.timeWindowStart)} to ${formatTimeDisplay(alert.timeWindowEnd)}
+NUMBER OF PLAYERS: ${alert.players}
+
+INSTRUCTIONS:
+1. Search GolfNow.com for "${alert.courseName}" tee times on ${datesStr}
+2. Also search for "${alert.courseName} tee times ${rawDatesStr}"
+3. List EVERY available tee time you find with the exact time, price, and booking URL
+4. Set matches_found to true if you find ANY tee times at all
+5. Include ALL tee times, not just those in the preferred window
+6. Use real GolfNow booking URLs
+
+Return the results as JSON with the matching_tee_times array populated.`
 
       const result = await callAIAgent(checkMessage, TEE_TIME_CHECKER_ID)
 
-      // Save alert to state
+      // Save alert to state regardless of check result
       setAlerts(prev => {
         const existing = prev.findIndex(a => a.id === alert.id)
         if (existing !== -1) {
@@ -1403,11 +1484,11 @@ Players: ${alert.players}`
       })
 
       if (result.success) {
-        const data = result?.response?.result
-        const totalMatches = data?.total_matches ?? 0
+        const { teeTimes, found } = extractTeeTimeData(result)
+        const totalMatches = teeTimes.length
         setCreateStatusMessage({
           type: 'success',
-          text: `Alert saved! ${totalMatches > 0 ? `Found ${totalMatches} matching tee time${totalMatches !== 1 ? 's' : ''}.` : 'No matches yet, we will keep checking.'}`,
+          text: `Alert saved! ${found && totalMatches > 0 ? `Found ${totalMatches} available tee time${totalMatches !== 1 ? 's' : ''} - check Dashboard.` : 'Monitoring started. We will check periodically for openings.'}`,
         })
       } else {
         setCreateStatusMessage({ type: 'success', text: 'Alert saved! We will start checking for available tee times.' })
@@ -1418,9 +1499,24 @@ Players: ${alert.players}`
         setActiveScreen('dashboard')
         setEditingAlert(null)
         setCreateStatusMessage(null)
-      }, 2000)
+      }, 2500)
     } catch (err) {
-      setCreateStatusMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to save alert.' })
+      // Still save the alert even if check failed
+      setAlerts(prev => {
+        const existing = prev.findIndex(a => a.id === alert.id)
+        if (existing !== -1) {
+          const updated = [...prev]
+          updated[existing] = alert
+          return updated
+        }
+        return [...prev, alert]
+      })
+      setCreateStatusMessage({ type: 'info', text: 'Alert saved! Initial check encountered an issue, but we will keep monitoring.' })
+      setTimeout(() => {
+        setActiveScreen('dashboard')
+        setEditingAlert(null)
+        setCreateStatusMessage(null)
+      }, 2500)
     } finally {
       setIsSaving(false)
       setActiveAgentId(null)
